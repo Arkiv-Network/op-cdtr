@@ -6,12 +6,12 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	bootstrapconductor "github.com/arkiv-network/op-cdtr/pkg/conductor"
 	"github.com/ethereum-optimism/optimism/op-conductor/conductor"
 	opcflags "github.com/ethereum-optimism/optimism/op-conductor/flags"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
-	bootstrapconductor "github.com/golem-base/op-conductor-init/pkg/conductor"
 )
 
 func Command() *cli.Command {

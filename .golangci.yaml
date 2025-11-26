@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+# golangci-lint v2 configuration
+# https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+    - integration
+
+output:
+  formats:
+    text:
+      print-linter-name: true
+      print-issued-lines: true
+      colors: true
+
+linters:
+  default: standard
+  enable:
+    - bodyclose # Ensures HTTP response bodies are closed
+    - dogsled # Finds assignments with too many blank identifiers
+    - dupl # Tool for code clone detection
+    - gochecknoinits # Checks that no init functions are present
+    - goconst # Finds repeated strings that could be replaced by constants
+    - gocritic # Provides diagnostics that check for bugs, performance and style issues
+    - gosec # Security-focused linter
+    - misspell # Finds commonly misspelled English words
+    - nakedret # Finds naked returns in functions greater than specified function length
+    - noctx # Finds sending http request without context.Context
+    - nolintlint # Reports ill-formed or insufficient nolint directives
+    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go
+    - tparallel # Detects inappropriate usage of t.Parallel() method in tests
+    - unconvert # Removes unnecessary type conversions
+    - unparam # Reports unused function parameters
+    - whitespace # Tool for detection of leading and trailing whitespace
+
+  settings:
+    errcheck:
+      check-type-assertions: true # Check for ignored type assertion results
+      check-blank: true # Check for ignored assignments to blank identifier
+
+    govet:
+      enable-all: true # Enable all go vet checks
+      disable:
+        - shadow # Disable variable shadowing check (can be too noisy)
+
+    gocyclo:
+      min-complexity: 15 # Minimum token sequence as duplication trigger
+
+    dupl:
+      threshold: 100
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    misspell:
+      locale: US
+
+    unused:
+      field-writes-are-uses: true # Treat field writes as field usage
+
+    gosec:
+      excludes:
+        - G104 # Audit errors not checked (too noisy)
+        - G304 # File path provided as taint input (false positives)
+
+    revive:
+      rules:
+        - name: var-naming # Check variable naming conventions
+          disabled: false
+        - name: package-comments # Require package comments (not needed to be honest)
+          disabled: false
+        - name: exported # Check exported items have comments
+          disabled: false
+          arguments:
+            - "disableStutteringCheck" # Allow package.PackageType naming
+
+  exclusions:
+    presets:
+      - comments
+    rules:
+      # Exclude lll issues for long lines with go:generate
+      - linters:
+          - lll
+        source: "^//go:generate "
+
+      # Exclude some linters from running on tests files (relax linting here)
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - goconst
+          - gocognit
+          - noctx
+
+      # Skip generated protobuf files (auto-generated, can't fix)
+      - path: ".*\\.pb\\.go"
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - goconst
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+      rewrite-rules:
+        - pattern: "interface{}"
+          replacement: "any"
+        - pattern: "a[b:len(a)]"
+          replacement: "a[b:]"
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 3
+  fix: true
+
+severity:
+  default: warning
+  rules:
+    - linters:
+        - dupl
+      severity: info
+    - linters:
+        - goconst
+      severity: info

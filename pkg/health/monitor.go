@@ -23,24 +23,20 @@ var (
 // BootstrapHealthMonitor is a custom health monitor for bootstrap operations.
 // It implements the HealthMonitor interface but skips peer stats checking.
 type BootstrapHealthMonitor struct {
-	log     log.Logger
-	metrics metrics.Metricer
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
-
-	rollupCfg      *rollup.Config
-	unsafeInterval uint64
-	safeEnabled    bool
-	safeInterval   uint64
-	interval       uint64
-	healthUpdateCh chan error
-
+	metrics            metrics.Metricer
+	log                log.Logger
+	node               dial.RollupClientInterface
+	healthUpdateCh     chan error
+	cancel             context.CancelFunc
+	rollupCfg          *rollup.Config
+	timeProviderFn     func() uint64
+	wg                 sync.WaitGroup
+	interval           uint64
+	safeInterval       uint64
 	lastSeenUnsafeNum  uint64
 	lastSeenUnsafeTime uint64
-
-	timeProviderFn func() uint64
-
-	node dial.RollupClientInterface
+	unsafeInterval     uint64
+	safeEnabled        bool
 }
 
 // NewBootstrapHealthMonitor creates a new bootstrap health monitor.
@@ -89,17 +85,19 @@ func (hm *BootstrapHealthMonitor) Stop() error {
 	}
 
 	hm.log.Info("stopping bootstrap health monitor")
+
+	// Signal cancellation to loop
 	hm.cancel()
-	hm.cancel = nil
 
-	// drain the healthUpdateCh to unblock loop
-	go func() {
-		for range hm.healthUpdateCh {
-		}
-	}()
-
-	close(hm.healthUpdateCh)
+	// Wait for loop to fully exit before closing the channel
+	// This ensures no goroutine will try to send on the channel after it's closed
 	hm.wg.Wait()
+
+	// Now it's safe to close the channel - no more sends will happen
+	close(hm.healthUpdateCh)
+
+	// Clear cancel function
+	hm.cancel = nil
 
 	hm.log.Info("bootstrap health monitor stopped")
 	return nil
@@ -113,7 +111,7 @@ func (hm *BootstrapHealthMonitor) Subscribe() <-chan error {
 func (hm *BootstrapHealthMonitor) loop(ctx context.Context) {
 	defer hm.wg.Done()
 
-	duration := time.Duration(hm.interval) * time.Second
+	duration := time.Duration(hm.interval) * time.Second //nolint:gosec
 	ticker := time.NewTicker(duration)
 	defer ticker.Stop()
 
@@ -186,7 +184,7 @@ func (hm *BootstrapHealthMonitor) healthCheck(ctx context.Context) error {
 
 // currentTimeProvider returns the current time in Unix seconds.
 func currentTimeProvider() uint64 {
-	return uint64(time.Now().Unix())
+	return uint64(time.Now().Unix()) //nolint:gosec
 }
 
 // calculateTimeDiff calculates the difference between two times in seconds.

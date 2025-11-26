@@ -1,5 +1,5 @@
 {
-  description = "op-conductor-init";
+  description = "op-cdtr";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";

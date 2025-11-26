@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 
-	"github.com/golem-base/op-conductor-init/pkg/flags"
+	"github.com/arkiv-network/op-cdtr/pkg/flags"
 )
 
 // NodeConfig represents a single node in the Raft cluster
@@ -18,11 +18,11 @@ type NodeConfig struct {
 
 // Config holds the configuration for the raft-preconfig tool
 type Config struct {
-	Nodes         []NodeConfig
 	OutputDir     string
 	InitialLeader string
-	InitialTerm   uint64
 	Network       string
+	Nodes         []NodeConfig
+	InitialTerm   uint64
 	Force         bool
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 
+	"github.com/arkiv-network/op-cdtr/pkg/health"
 	"github.com/ethereum-optimism/optimism/op-conductor/client"
 	opconductor "github.com/ethereum-optimism/optimism/op-conductor/conductor"
 	"github.com/ethereum-optimism/optimism/op-conductor/consensus"
@@ -31,7 +32,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	oprpc "github.com/ethereum-optimism/optimism/op-service/rpc"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
-	"github.com/golem-base/op-conductor-init/pkg/health"
 )
 
 var (
@@ -74,7 +74,7 @@ func NewOpConductor(
 		ctrl:         ctrl,
 		cons:         cons,
 		hmon:         hmon,
-		retryBackoff: func() time.Duration { return time.Duration(rand.Intn(2000)) * time.Millisecond },
+		retryBackoff: func() time.Duration { return time.Duration(rand.Intn(2000)) * time.Millisecond }, //nolint:gosec
 	}
 	oc.loopActionFn = oc.loopAction
 
@@ -165,7 +165,7 @@ func (c *OpConductor) initSequencerControl(ctx context.Context) error {
 	return c.updateSequencerActiveStatus()
 }
 
-func (c *OpConductor) initConsensus(ctx context.Context) error {
+func (c *OpConductor) initConsensus(_ context.Context) error {
 	if c.cons != nil {
 		return nil
 	}
@@ -287,41 +287,35 @@ func (oc *OpConductor) initRPCServer(ctx context.Context) error {
 //  2. paused: control loop (sequencer start/stop) is paused, but it still participates in leader election, and receives health updates.
 //  3. stopped: it is stopped, which means it is not participating in leader election and control loop. OpConductor cannot be started again from stopped mode.
 type OpConductor struct {
-	log     log.Logger
-	version string
-	cfg     *opconductor.Config
-	metrics metrics.Metricer
-
-	ctrl client.SequencerControl
-	cons consensus.Consensus
-	hmon opchealth.HealthMonitor
-
-	leader         atomic.Bool
-	leaderOverride atomic.Bool
-	seqActive      atomic.Bool
-	healthy        atomic.Bool
-	hcerr          error // error from health check
+	hcerr          error
+	shutdownCtx    context.Context
+	log            log.Logger
+	metrics        metrics.Metricer
+	ctrl           client.SequencerControl
+	cons           consensus.Consensus
+	hmon           opchealth.HealthMonitor
+	actionCh       chan struct{}
+	pauseDoneCh    chan struct{}
+	retryBackoff   func() time.Duration
+	metricsServer  *httputil.HTTPServer
+	rpcServer      *oprpc.Server
 	prevState      *state
-
 	healthUpdateCh <-chan error
 	leaderUpdateCh <-chan bool
-	loopActionFn   func() // loopActionFn defines the logic to be executed inside control loop.
-
-	wg             sync.WaitGroup
+	loopActionFn   func()
+	shutdownCancel context.CancelFunc
 	pauseCh        chan struct{}
-	pauseDoneCh    chan struct{}
+	cfg            *opconductor.Config
 	resumeCh       chan struct{}
 	resumeDoneCh   chan struct{}
-	actionCh       chan struct{}
+	version        string
+	wg             sync.WaitGroup
+	leaderOverride atomic.Bool
 	paused         atomic.Bool
 	stopped        atomic.Bool
-	shutdownCtx    context.Context
-	shutdownCancel context.CancelFunc
-
-	rpcServer     *oprpc.Server
-	metricsServer *httputil.HTTPServer
-
-	retryBackoff func() time.Duration
+	leader         atomic.Bool
+	healthy        atomic.Bool
+	seqActive      atomic.Bool
 }
 
 type state struct {
@@ -787,7 +781,7 @@ func (oc *OpConductor) startSequencer() error {
 	// If not, then we wait for the unsafe head to catch up or gossip it to op-node manually from op-conductor.
 	unsafeInCons, unsafeInNode, err := oc.compareUnsafeHead(ctx)
 
-	// Handle the case where consensus has no unsafe head - always auto-bootstrap in op-conductor-init
+	// Handle the case where consensus has no unsafe head - always auto-bootstrap in op-cdtr
 	if errors.Is(err, ErrNoUnsafeHead) {
 		oc.log.Warn("No unsafe head in consensus, auto-bootstrapping network from execution layer")
 

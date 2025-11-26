@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
-project_name: op-conductor-init
+project_name: op-cdtr
 
 before:
   hooks:
@@ -9,113 +9,60 @@ before:
     - go mod download
 
 builds:
-  - id: op-conductor-init
-    main: ./cmd/op-conductor-init
-    binary: op-conductor-init
+  - id: op-cdtr
+    main: ./cmd/op-cdtr
+    binary: op-cdtr
     env:
       - CGO_ENABLED=0
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w
       - -X main.Version={{.Version}}
-      - -X main.GitCommit={{.Commit}}
-      - -X main.GitDate={{.Date}}
+      - -X main.CommitSHA={{.Commit}}
+      - -X main.Date={{.Date}}
 
 archives:
   - id: default
     name_template: >-
       {{ .ProjectName }}_ {{- .Version }}_ {{- title .Os }}_ {{- if eq .Arch "amd64" }}x86_64 {{- else if eq .Arch "386" }}i386 {{- else }}{{ .Arch }}{{ end }} {{- if .Arm }}v{{ .Arm }}{{ end }}
     files:
-      - LICENSE*
       - README.md
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
   algorithm: sha256
 
 snapshot:
-  version_template: "{{ incpatch .Version }}-dev"
+  version_template: "{{ incpatch .Version }}-{{ .ShortCommit }}"
 
-# Build Docker images
-dockers:
-  - image_templates:
-      - "golemnetwork/op-conductor-init:{{ .Version }}-amd64"
-      - "golemnetwork/op-conductor-init:{{ .Tag }}-amd64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}-amd64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "golemnetwork/op-conductor-init:latest-amd64"
-    dockerfile: Dockerfile.goreleaser
-    use: buildx
-    ids:
-      - op-conductor-init
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=GIT_COMMIT={{.Commit}}"
-      - "--build-arg=GIT_DATE={{.Date}}"
+dockers_v2:
+  - images:
+      - golemnetwork/op-cdtr
+    dockerfile: "Dockerfile"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .IsSnapshot }}{{ .Tag }}{{ end }}"
+      - "{{ if not .IsSnapshot }}v{{ .Major }}{{ end }}"
+      - "{{ if not .IsSnapshot }}v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .IsSnapshot }}latest{{ end }}"
+      - "{{ if .IsSnapshot }}snapshot{{ end }}"
+    labels:
+      org.opencontainers.image.created: "{{.Date}}"
+      org.opencontainers.image.title: "{{.ProjectName}}"
+      org.opencontainers.image.revision: "{{.FullCommit}}"
+      org.opencontainers.image.version: "{{.Version}}"
+    build_args:
+      VERSION: "{{.Version}}"
+      GIT_COMMIT: "{{.Commit}}"
 
-  - image_templates:
-      - "golemnetwork/op-conductor-init:{{ .Version }}-arm64"
-      - "golemnetwork/op-conductor-init:{{ .Tag }}-arm64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}-arm64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "golemnetwork/op-conductor-init:latest-arm64"
-    dockerfile: Dockerfile.goreleaser
-    use: buildx
-    ids:
-      - op-conductor-init
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=GIT_COMMIT={{.Commit}}"
-      - "--build-arg=GIT_DATE={{.Date}}"
-    goarch: arm64
-
-# Create Docker manifests for multi-arch
-docker_manifests:
-  - name_template: "golemnetwork/op-conductor-init:{{ .Version }}"
-    image_templates:
-      - "golemnetwork/op-conductor-init:{{ .Version }}-amd64"
-      - "golemnetwork/op-conductor-init:{{ .Version }}-arm64"
-
-  - name_template: "golemnetwork/op-conductor-init:{{ .Tag }}"
-    image_templates:
-      - "golemnetwork/op-conductor-init:{{ .Tag }}-amd64"
-      - "golemnetwork/op-conductor-init:{{ .Tag }}-arm64"
-
-  - name_template: "golemnetwork/op-conductor-init:v{{ .Major }}"
-    image_templates:
-      - "golemnetwork/op-conductor-init:v{{ .Major }}-amd64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}-arm64"
-
-  - name_template: "golemnetwork/op-conductor-init:v{{ .Major }}.{{ .Minor }}"
-    image_templates:
-      - "golemnetwork/op-conductor-init:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "golemnetwork/op-conductor-init:v{{ .Major }}.{{ .Minor }}-arm64"
-
-  - name_template: "golemnetwork/op-conductor-init:latest"
-    image_templates:
-      - "golemnetwork/op-conductor-init:latest-amd64"
-      - "golemnetwork/op-conductor-init:latest-arm64"
-
-# SBOM generation
 sboms:
   - artifacts: archive
     id: archive
@@ -143,18 +90,18 @@ changelog:
       order: 999
   filters:
     exclude:
-      - '^chore:'
-      - '^ci:'
-      - '^test:'
-      - '^build:'
+      - "^chore:"
+      - "^ci:"
+      - "^test:"
+      - "^build:"
 
 release:
   github:
-    owner: golem-base
-    name: op-conductor-init
+    owner: arkiv-network
+    name: op-cdtr
 
   header: |
-    ## op-conductor-init {{ .Tag }}
+    ## op-cdtr {{ .Tag }}
 
     Pre-configure Raft state for Optimism conductor to eliminate bootstrap sequencer requirements.
 
@@ -167,8 +114,12 @@ release:
     #### Docker
 
     ```bash
-    docker pull golemnetwork/op-conductor-init:{{ .Tag }}
+    docker pull golemnetwork/op-cdtr:{{ .Tag }}
     ```
+
+    #### Configuration
+
+    See the README for detailed setup instructions.
 
   draft: false
   prerelease: auto

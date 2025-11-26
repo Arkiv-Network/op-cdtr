@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/raft"
 
-	"github.com/golem-base/op-conductor-init/pkg/config"
-	"github.com/golem-base/op-conductor-init/pkg/store"
+	"github.com/arkiv-network/op-cdtr/pkg/config"
+	"github.com/arkiv-network/op-cdtr/pkg/store"
 )
 
 // Generator handles the generation of pre-configured Raft state
@@ -61,7 +61,7 @@ func (g *Generator) Generate(ctx context.Context) error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(g.cfg.OutputDir, 0o755); err != nil {
+	if err := os.MkdirAll(g.cfg.OutputDir, 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -121,7 +121,7 @@ func (g *Generator) createNodeState(node config.NodeConfig, configEntry *raft.Lo
 	nodeDir := filepath.Join(g.cfg.OutputDir, node.ServerID)
 
 	// Create node directory
-	if err := os.MkdirAll(nodeDir, 0o755); err != nil {
+	if err := os.MkdirAll(nodeDir, 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to create node directory: %w", err)
 	}
 
